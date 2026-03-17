@@ -1035,6 +1035,15 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
             var pendingAddProductId = null;
             var pendingAddQty = 1;
             var quantityStep = parseFloat('<?=str_replace(',', '.', (string)($measureRatio ?: 1))?>') || 1;
+            var isInternalQtyUpdate = false;
+
+            function debugBasket(eventName, payload) {
+                if (typeof console === 'undefined' || typeof console.log !== 'function') {
+                    return;
+                }
+
+                console.log('[catalog-basket-debug] ' + eventName, payload || {});
+            }
 
             function normalizeQty(val) {
                 val = String(val || '').replace(',', '.').replace(/[^\d.]/g, '');
@@ -1101,13 +1110,24 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
 
                 var normalized = normalizeQty(val);
 
+                if (isInternalQtyUpdate && normalizeQty(qtyInput.value) === normalized) {
+                    return;
+                }
+
+                isInternalQtyUpdate = true;
+
                 qtyInput.value = normalized;
                 qtyInput.setAttribute('value', normalized);
                 qtyInput.setAttribute('data-value', normalized);
 
                 syncBitrixQuantity(normalized);
 
-                qtyInput.dispatchEvent(new Event('change', { bubbles: true }));
+                isInternalQtyUpdate = false;
+
+                debugBasket('setQty', {
+                    normalized: normalized,
+                    currentProductId: getCurrentProductId()
+                });
             }
 
             function showToast(message) {
@@ -1180,6 +1200,12 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
                 } else {
                     setQty(getQty());
                 }
+
+                debugBasket('updateButtonsByCurrentProduct', {
+                    productId: productId,
+                    inBasket: inBasket,
+                    basketQty: basketMap[productId] || 0
+                });
             }
 
             function syncQtyBeforeBasketAction() {
@@ -1194,6 +1220,11 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
                 if (catalogElement && typeof catalogElement.setQuantity === 'function') {
                     catalogElement.setQuantity(qty);
                 }
+
+                debugBasket('syncQtyBeforeBasketAction', {
+                    pendingAddProductId: pendingAddProductId,
+                    pendingAddQty: pendingAddQty
+                });
             }
 
             function handleBasketButtonClick(e) {
@@ -1219,6 +1250,10 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
                 });
 
                 qtyInput.addEventListener('change', function () {
+                    if (isInternalQtyUpdate) {
+                        return;
+                    }
+
                     setQty(this.value);
                 });
             }
@@ -1226,6 +1261,7 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
             if (qtyMinusBtn) {
                 qtyMinusBtn.addEventListener('click', function (e) {
                     e.preventDefault();
+                    e.stopImmediatePropagation();
                     setQty(getQty() - quantityStep);
                 }, true);
             }
@@ -1233,6 +1269,7 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
             if (qtyPlusBtn) {
                 qtyPlusBtn.addEventListener('click', function (e) {
                     e.preventDefault();
+                    e.stopImmediatePropagation();
                     setQty(getQty() + quantityStep);
                 }, true);
             }
@@ -1251,9 +1288,17 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
                         basketMap[pendingAddProductId] = (parseFloat(basketMap[pendingAddProductId]) || 0) + pendingAddQty;
                         updateButtonsByCurrentProduct();
                         showToast('Товар добавлен в корзину');
+                        debugBasket('OnBasketChange:added', {
+                            productId: pendingAddProductId,
+                            qty: basketMap[pendingAddProductId]
+                        });
                         pendingAddProductId = null;
                     } else {
                         updateButtonsByCurrentProduct();
+                        debugBasket('OnBasketChange:refresh', {
+                            currentProductId: getCurrentProductId(),
+                            basketQty: basketMap[getCurrentProductId()] || 0
+                        });
                     }
                 });
 
