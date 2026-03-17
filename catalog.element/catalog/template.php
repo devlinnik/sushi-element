@@ -1164,7 +1164,17 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
 
             function isCurrentProductInBasket() {
                 var productId = getCurrentProductId();
-                return !!basketMap[productId];
+                if (Object.prototype.hasOwnProperty.call(basketMap, productId)) {
+                    return !!basketMap[productId];
+                }
+
+                return [addBtn, buyBtn].some(function (btn) {
+                    if (!btn) {
+                        return false;
+                    }
+
+                    return btn.getAttribute('data-in-basket') === 'Y' || btn.classList.contains('in-basket');
+                });
             }
 
             function setButtonsState(isAdded) {
@@ -1191,20 +1201,24 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
 
             function updateButtonsByCurrentProduct() {
                 var productId = getCurrentProductId();
-                var inBasket = !!basketMap[productId];
+                var hasBasketData = Object.prototype.hasOwnProperty.call(basketMap, productId);
+                var inBasket = hasBasketData ? !!basketMap[productId] : isCurrentProductInBasket();
 
-                setButtonsState(inBasket);
+                if (hasBasketData) {
+                    setButtonsState(inBasket);
 
-                if (inBasket && basketMap[productId]) {
-                    setQty(basketMap[productId]);
-                } else {
-                    setQty(getQty());
+                    if (inBasket && basketMap[productId]) {
+                        setQty(basketMap[productId]);
+                    } else {
+                        setQty(getQty());
+                    }
                 }
 
                 debugBasket('updateButtonsByCurrentProduct', {
                     productId: productId,
                     inBasket: inBasket,
-                    basketQty: basketMap[productId] || 0
+                    basketQty: basketMap[productId] || 0,
+                    hasBasketData: hasBasketData
                 });
             }
 
