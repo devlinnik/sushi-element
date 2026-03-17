@@ -1074,7 +1074,7 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
                 }
 
                 if (catalogElement.basketData) {
-                    catalogElement.basketData.quantity = normalized;
+                    catalogElement.basketData.lastQuantity = normalized;
                 }
 
                 if (catalogElement.product && typeof catalogElement.product === 'object') {
@@ -1248,13 +1248,19 @@ $jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
             if (typeof BX !== 'undefined' && BX.addCustomEvent) {
                 BX.addCustomEvent('OnBasketChange', function () {
                     if (pendingAddProductId) {
-                        basketMap[pendingAddProductId] = pendingAddQty;
+                        basketMap[pendingAddProductId] = (parseFloat(basketMap[pendingAddProductId]) || 0) + pendingAddQty;
                         updateButtonsByCurrentProduct();
                         showToast('Товар добавлен в корзину');
                         pendingAddProductId = null;
                     } else {
                         updateButtonsByCurrentProduct();
                     }
+                });
+
+                BX.addCustomEvent('onCatalogElementChangeOffer', function () {
+                    setTimeout(function () {
+                        updateButtonsByCurrentProduct();
+                    }, 0);
                 });
             }
 
